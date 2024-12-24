@@ -1,154 +1,255 @@
 import numpy as np
 import math
 from scipy import stats
+import matplotlib.pyplot as plt
+from statsmodels.stats.power import TTestIndPower
 
 def get_user_input():
     # Get input from the user for the parameters
-    #ensure all inputs are valid types
-    try:
-        mean1 = float(input("Enter the mean ADAS-Cog change from baseline for simufilam: "))
-    except ValueError:
-        print("Invalid mean. Please enter a positive value.")
-        mean1 = float(input("Enter the mean ADAS-Cog change from baseline for simufilam: "))
-    while mean1 < 0:
-        print("Invalid mean. Please enter a positive value.")
-        mean1 = float(input("Enter the mean ADAS-Cog change from baseline for simufilam: "))
+    while True:
+        try:
+            mean1 = float(input("Enter the mean ADAS-Cog change from baseline for the treatment group: "))
+            break
+        except ValueError:
+            print("Invalid input. Please enter a numeric value.")
 
-    try:
-        stddev1 = float(input("Enter the standard deviation of the ADAS-Cog change from baseline for simufilam: "))
-    except ValueError:
-        print("Invalid standard deviation. Please enter a positive value.")
-        stddev1 = float(input("Enter the standard deviation of the ADAS-Cog change from baseline for simufilam: "))
-    while stddev1 < 0:
-        print("Invalid standard deviation. Please enter a positive value.")
-        stddev1 = float(input("Enter the standard deviation of the ADAS-Cog change from baseline for simufilam: "))
-    try:
-        dropout_rate = float(input("Enter the dropout rate (as a decimal): "))
-    except ValueError:
-        print("Invalid dropout rate. Please enter a positive value.")
-        dropout_rate = float(input("Enter the dropout rate (as a decimal): "))
-    while dropout_rate < 0 or dropout_rate > 1:
-        print("Invalid dropout rate. Please enter a value between 0 and 1.")
-        dropout_rate = float(input("Enter the dropout rate (as a decimal): "))
-    #n1 = int(input("Enter the sample size of the first distribution: "))
-    n1 = math.ceil(402 * (1 - dropout_rate))
-    try:
-        mean2 = float(input("Enter the mean ADAS-Cog change from baseline for placebo: "))
-    except ValueError:
-        print("Invalid mean. Please enter a positive value.")
-        mean2 = float(input("Enter the mean ADAS-Cog change from baseline for placebo: "))
-    while mean2 < 0:
-        print("Invalid mean. Please enter a positive value.")
-        mean2 = float(input("Enter the mean ADAS-Cog change from baseline for placebo: "))
-    try:
-        print("Standard deviation is one of the most important parameters. It should be a value that is consistent with the literature. Donanemab had a SD of 6-7 for drug and placebo.")
-        stddev2 = float(input("Enter the standard deviation of the ADAS-Cog change from baseline for placebo: "))
-    except ValueError:
-        print("Invalid standard deviation. Please enter a positive value.")
-        stddev2 = float(input("Enter the standard deviation of the ADAS-Cog change from baseline for placebo: "))
-    while stddev2 < 0:
-        print("Invalid standard deviation. Please enter a positive value.")
-        stddev2 = float(input("Enter the standard deviation of the ADAS-Cog change from baseline for placebo: "))
-    #n2 = int(input("Enter the sample size of the second distribution: "))
-    #make sure n2 is an integer, round up if necessary
-    n2 = math.ceil(402 * (1 - dropout_rate))
-    use_same_seed = True
-    seed1, seed2 = 42, 42
-    use_same_seed = input("Do you want to use the exact same distribution for both groups or randomize? (y/n): ")
-    #do you want to enforce a maximum delta
-    max_delta = input("There will be some randomness when creating the distributions. Do you want to enforce a maximum ADAS-Cog delta between the two groups? (y (enforce)/n (let it roll)): ")
-    if max_delta == "y":
-        max_delta = float(input("Enter the maximum delta: "))
-    else:
-        max_delta = float('inf')
-    if use_same_seed == "y":
-        use_random_seed = False
-    else:
-        use_random_seed = True
-    return mean1, stddev1, n1, mean2, stddev2, n2, seed1, seed2, use_random_seed, max_delta
+    while True:
+        try:
+            stddev1 = float(input("Enter the standard deviation of the ADAS-Cog change for the treatment group: "))
+            if stddev1 <= 0:
+                print("Standard deviation must be positive.")
+                continue
+            break
+        except ValueError:
+            print("Invalid input. Please enter a numeric value.")
 
-def generate_samples(mean1, stddev1, n1, mean2, stddev2, n2, seed1, seed2, use_random_seed, do_not_print_details, max_delta):
-    if use_random_seed:
-        seed1, seed2 = np.random.randint(0, 1000000), np.random.randint(0, 1000000)
-    else:
-        seed1, seed2 = 42, 42
+    while True:
+        try:
+            dropout_rate = float(input("Enter the dropout rate (as a decimal between 0 and 1): "))
+            if not 0 <= dropout_rate < 1:
+                print("Dropout rate must be between 0 and 1.")
+                continue
+            break
+        except ValueError:
+            print("Invalid input. Please enter a decimal value between 0 and 1.")
 
-    np.random.seed(seed1)  # Any seed value works, it just needs to be the same
-    sample1 = np.random.normal(mean1, stddev1, n1)    
-    np.random.seed(seed2)  # Reset the seed to ensure identical sample
-    sample2 = np.random.normal(mean2, stddev2, n2)
-    #delta should be absolute value
-    delta = abs(np.mean(sample1) - np.mean(sample2))
-    while delta > max_delta:
-        print("Delta is too high, rerolling samples")
-        sample1, sample2 = generate_samples(mean1, stddev1, n1, mean2, stddev2, n2, seed1, seed2, use_random_seed, do_not_print_details, max_delta)
-        delta = np.mean(sample1) - np.mean(sample2)
+    n1 = math.ceil(402 * (1 - dropout_rate))  # Calculated sample size after dropout
+
+    while True:
+        try:
+            mean2 = float(input("Enter the mean ADAS-Cog change from baseline for the placebo group: "))
+            break
+        except ValueError:
+            print("Invalid input. Please enter a numeric value.")
+
+    while True:
+        try:
+            stddev2 = float(input("\nEnter the standard deviation of the ADAS-Cog change for the placebo group: "))
+            if stddev2 <= 0:
+                print("Standard deviation must be positive.")
+                continue
+            break
+        except ValueError:
+            print("Invalid input. Please enter a numeric value.")
+
+    n2 = n1  # Assuming equal sample sizes
+
+    while True:
+        enforce_max_delta = input("\nDo you want to enforce a maximum ADAS-Cog delta between the two groups? (y/n): ").lower()
+        if enforce_max_delta in ['y', 'n']:
+            break
+        else:
+            print("Invalid input. Please enter 'y' or 'n'.")
+
+    if enforce_max_delta == 'y':
+        while True:
+            try:
+                max_delta = float(input("Enter the maximum allowed delta between group means: "))
+                if max_delta <= 0:
+                    print("Maximum delta must be positive.")
+                    continue
+                break
+            except ValueError:
+                print("Invalid input. Please enter a numeric value.")
+    else:
+        max_delta = None
+
+    return mean1, stddev1, n1, mean2, stddev2, n2, max_delta
+
+def generate_samples(mean1, stddev1, n1, mean2, stddev2, n2, max_delta, do_not_print_details):
+    max_attempts = 10000  # To prevent infinite loops
+    attempts = 0
+    while True:
+        attempts += 1
+        if attempts > max_attempts:
+            raise Exception("Unable to generate samples satisfying the maximum delta constraint. Please adjust the parameters.")
+
+        # Generate random samples
+        sample1 = np.random.normal(mean1, stddev1, n1)
+        sample2 = np.random.normal(mean2, stddev2, n2)
+
+        if max_delta is not None:
+            delta = abs(np.mean(sample1) - np.mean(sample2))
+            if delta > max_delta:
+                if not do_not_print_details:
+                    print("Delta is too high, rerolling samples...")
+                continue
+        break  # Exit the loop if samples are acceptable
 
     if not do_not_print_details:
-        #print the samples and provide more descriptive statistics
-        print(f"Sample 1: {sample1}", end="\t")
-        print(f"Sample 2: {sample2}")
-        #delta
+        # Print descriptive statistics
         delta = np.mean(sample1) - np.mean(sample2)
-        print(f"Delta: {delta}")
-        print(f"Mean of Sample 1: {np.mean(sample1)}", end="\t")
-        print(f"Mean of Sample 2: {np.mean(sample2)}")
-        print(f"Standard Deviation of Sample 1: {np.std(sample1)}", end="\t")
-        print(f"Standard Deviation of Sample 2: {np.std(sample2)}")
-        print(f"Variance of Sample 1: {np.var(sample1)}", end="\t")
-        print(f"Variance of Sample 2: {np.var(sample2)}")
-        print(f"Skewness of Sample 1: {stats.skew(sample1)}", end="\t")
-        print(f"Skewness of Sample 2: {stats.skew(sample2)}")
-        print(f"Kurtosis of Sample 1: {stats.kurtosis(sample1)}")
-        print(f"Kurtosis of Sample 2: {stats.kurtosis(sample2)}")
-        print(f"Minimum of Sample 1: {np.min(sample1)}", end="\t")
-        print(f"Maximum of Sample 1: {np.max(sample1)}")
-        print(f"Minimum of Sample 2: {np.min(sample2)}", end="\t")
-        print(f"Maximum of Sample 2: {np.max(sample2)}")
+        print(f"\nDescriptive Statistics:")
+        print(f"Delta (Mean1 - Mean2): {delta:.4f}")
+        print(f"Mean of Treatment Group: {np.mean(sample1):.4f}")
+        print(f"Mean of Placebo Group: {np.mean(sample2):.4f}")
+        print(f"Standard Deviation of Treatment Group: {np.std(sample1, ddof=1):.4f}")
+        print(f"Standard Deviation of Placebo Group: {np.std(sample2, ddof=1):.4f}")
+        print(f"Skewness of Treatment Group: {stats.skew(sample1):.4f}")
+        print(f"Skewness of Placebo Group: {stats.skew(sample2):.4f}")
+        print(f"Kurtosis of Treatment Group: {stats.kurtosis(sample1):.4f}")
+        print(f"Kurtosis of Placebo Group: {stats.kurtosis(sample2):.4f}")
+        print(f"Minimum of Treatment Group: {np.min(sample1):.4f}")
+        print(f"Maximum of Treatment Group: {np.max(sample1):.4f}")
+        print(f"Minimum of Placebo Group: {np.min(sample2):.4f}")
+        print(f"Maximum of Placebo Group: {np.max(sample2):.4f}")
+
+        # Option to plot the distributions
+        while True:
+            plot_distributions = input("\nDo you want to see histograms of the sample distributions? (y/n): ").lower()
+            if plot_distributions in ['y', 'n']:
+                break
+            else:
+                print("Invalid input. Please enter 'y' or 'n'.")
+
+        if plot_distributions == 'y':
+            plt.hist(sample1, bins=20, alpha=0.7, label='Treatment Group')
+            plt.hist(sample2, bins=20, alpha=0.7, label='Placebo Group')
+            plt.title('Sample Distributions')
+            plt.xlabel('ADAS-Cog Change')
+            plt.ylabel('Frequency')
+            plt.legend()
+            plt.show()
+
     return sample1, sample2
 
 def perform_t_test(sample1, sample2):
-    # Perform a two-sample t-test
-    t_stat, p_value = stats.ttest_ind(sample1, sample2)
+    # Perform a two-sample t-test (Welch's t-test)
+    t_stat, p_value = stats.ttest_ind(sample1, sample2, equal_var=False)
     return t_stat, p_value
+
+def calculate_effect_size(mean1, mean2, stddev1, stddev2, n1, n2):
+    # Calculate Cohen's d for independent samples
+    # Pooled standard deviation
+    s_pooled = np.sqrt(((n1 - 1) * stddev1**2 + (n2 - 1) * stddev2**2) / (n1 + n2 - 2))
+    effect_size = (mean1 - mean2) / s_pooled
+    return effect_size
+
+def calculate_power(effect_size, n1, n2, alpha=0.05):
+    analysis = TTestIndPower()
+    power = analysis.power(effect_size=effect_size, nobs1=n1, ratio=n2/n1, alpha=alpha, alternative='two-sided')
+    return power
 
 def main():
     # Get user inputs
-    mean1, stddev1, n1, mean2, stddev2, n2, seed1, seed2, use_random_seed, max_delta = get_user_input()
+    mean1, stddev1, n1, mean2, stddev2, n2, max_delta = get_user_input()
     do_not_print_details = False
+
+    # Optional: Set seed once for reproducibility
+    while True:
+        use_seed = input("Do you want to set a seed for reproducibility? (y/n): ").lower()
+        if use_seed in ['y', 'n']:
+            break
+        else:
+            print("Invalid input. Please enter 'y' or 'n'.")
+
+    if use_seed == 'y':
+        while True:
+            try:
+                seed_value = int(input("Enter an integer seed value: "))
+                np.random.seed(seed_value)
+                break
+            except ValueError:
+                print("Invalid input. Please enter an integer value.")
+    else:
+        # Ensure randomness if no seed is set
+        np.random.seed(None)
+
     # Generate samples based on the user's inputs
-    sample1, sample2 = generate_samples(mean1, stddev1, n1, mean2, stddev2, n2, seed1, seed2, use_random_seed, do_not_print_details, max_delta)
-    
+    sample1, sample2 = generate_samples(mean1, stddev1, n1, mean2, stddev2, n2,
+                                        max_delta, do_not_print_details)
+
     # Perform the t-test
     t_stat, p_value = perform_t_test(sample1, sample2)
-    
+
+    # Calculate effect size
+    effect_size = calculate_effect_size(np.mean(sample1), np.mean(sample2), np.std(sample1, ddof=1), np.std(sample2, ddof=1), n1, n2)
+
+    # Calculate power
+    power = calculate_power(effect_size, n1, n2)
+
     # Output the results
-    print(f"t-statistic: {t_stat}")
-    print(f"p-value: {p_value}")
+    print(f"\nT-test Results:")
+    print(f"t-statistic: {t_stat:.4f}")
+    print(f"p-value: {p_value:.6f}")
+    print(f"Effect Size (Cohen's d): {effect_size:.4f}")
+    print(f"Power of the test: {power:.4f}")
 
-    #ask for simulation size
-    simulation_size = int(input("Enter the number of simulations to run: "))
-    do_not_print_details = True
-     # Simulate 1000 trials
-    p_values = []
-    for _ in range(simulation_size):
-        sample1, sample2 = generate_samples(mean1, stddev1, n1, mean2, stddev2, n2, seed1, seed2, use_random_seed, do_not_print_details, max_delta)
-        _, p_value = perform_t_test(sample1, sample2)
-        p_values.append(p_value)
-    
-    # Calculate statistics for p-values
-    avg_p_value = np.mean(p_values)
-    max_p_value = np.max(p_values)
-    min_p_value = np.min(p_values)
-    stddev_p_value = np.std(p_values)
-    
-    # Output the results
-    print(f"Average p-value: {avg_p_value}")
-    print(f"Maximum p-value: {max_p_value}")
-    print(f"Minimum p-value: {min_p_value}")
-    print(f"Standard deviation of p-values: {stddev_p_value}")
+    # Ask if the user wants to run simulations
+    while True:
+        run_simulations = input("\nDo you want to run simulations to observe p-value variability? (y/n): ").lower()
+        if run_simulations in ['y', 'n']:
+            break
+        else:
+            print("Invalid input. Please enter 'y' or 'n'.")
 
+    if run_simulations == "y":
+        while True:
+            try:
+                simulation_size = int(input("Enter the number of simulations to run: "))
+                if simulation_size <= 0:
+                    print("Please enter a positive integer.")
+                    continue
+                break
+            except ValueError:
+                print("Invalid input. Please enter an integer value.")
+        do_not_print_details = True
+        p_values = []
+        for _ in range(simulation_size):
+            sample1, sample2 = generate_samples(mean1, stddev1, n1, mean2, stddev2, n2,
+                                                max_delta, do_not_print_details)
+            _, p_value_sim = perform_t_test(sample1, sample2)
+            p_values.append(p_value_sim)
 
+        # Calculate statistics for p-values
+        avg_p_value = np.mean(p_values)
+        max_p_value = np.max(p_values)
+        min_p_value = np.min(p_values)
+        stddev_p_value = np.std(p_values, ddof=1)
+
+        # Output the results
+        print(f"\nSimulation Results (n={simulation_size}):")
+        print(f"Average p-value: {avg_p_value:.6f}")
+        print(f"Maximum p-value: {max_p_value:.6f}")
+        print(f"Minimum p-value: {min_p_value:.6f}")
+        print(f"Standard deviation of p-values: {stddev_p_value:.6f}")
+
+        # Optionally, plot the distribution of p-values
+        while True:
+            plot_hist = input("\nDo you want to see a histogram of the p-values? (y/n): ").lower()
+            if plot_hist in ['y', 'n']:
+                break
+            else:
+                print("Invalid input. Please enter 'y' or 'n'.")
+
+        if plot_hist == 'y':
+            plt.hist(p_values, bins=20, edgecolor='black', alpha=0.7)
+            plt.title('Distribution of P-Values from Simulations')
+            plt.xlabel('P-Value')
+            plt.ylabel('Frequency')
+            plt.show()
+    else:
+        print("Simulation skipped.")
 
 if __name__ == "__main__":
     main()
